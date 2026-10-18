@@ -47,6 +47,18 @@ docker run -d --name test-lab --read-only --tmpfs /tmp \
 
 Контейнер успешно работает в режиме `--read-only`.
 
+### Почему нужен `--tmpfs /tmp`
+
+При запуске с флагом `--read-only` вся файловая система контейнера доступна только на чтение. Gunicorn при старте пытается создать временный файл в `/tmp`. Без writable-директории контейнер падает с ошибкой:
+
+```
+FileNotFoundError: No usable temporary directory found in ['/tmp', '/var/tmp', '/usr/tmp', '/app']
+```
+
+![Ошибка без tmpfs](screenshots/08_readonly_no_tmpfs.png)
+
+Параметр `--tmpfs /tmp` монтирует временную файловую систему в оперативной памяти, что позволяет gunicorn работать корректно.
+
 ---
 
 ## 4. Проверка эндпоинтов
@@ -97,7 +109,27 @@ docker inspect voldn/image-lab:4ba58769 --format "{{json .Config.Labels}}"
 
 ---
 
-## 7. docker history
+## 7. Корректное завершение по SIGTERM
+
+```bash
+docker stop test-lab
+docker logs test-lab
+```
+
+![SIGTERM](screenshots/09_sigterm.png)
+
+В логах видно корректную обработку сигнала:
+
+```
+Handling signal: term
+Shutting down...
+Worker exiting
+Shutting down: Master
+```
+
+---
+
+## 8. docker history
 
 ```bash
 docker history voldn/image-lab:4ba58769
@@ -107,7 +139,7 @@ docker history voldn/image-lab:4ba58769
 
 ---
 
-## 8. Почему этот образ лучше наивной сборки
+## 9. Почему этот образ лучше наивной сборки
 
 1. Использована multi-stage сборка: зависимости устанавливаются в отдельном builder-слое, а в финальный образ копируется только необходимое. Это существенно уменьшает размер.
 2. В качестве базового образа выбран `python:3.12-slim` вместо полного `python`, что сразу экономит десятки мегабайт.
